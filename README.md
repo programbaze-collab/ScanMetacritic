@@ -2,6 +2,10 @@
 
 Каталог читает страницы Metacritic, хранит карточки в SQLite и показывает список, карточку и страницу обхода. Время обхода считается по Asia/Novosibirsk.
 
+Публичный адрес: https://metacritic.81-85-78-242.sslip.io/
+
+Переписка по этой задаче: https://raw.githubusercontent.com/programbaze-collab/ScanMetacritic/master/conversation.jsonl
+
 ## Запуск
 
 ```bash
