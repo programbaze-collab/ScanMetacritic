@@ -101,16 +101,39 @@ def _google(text: str) -> str:
     translated = []
     with httpx.Client(timeout=30, headers={"User-Agent": "Mozilla/5.0"}) as client:
         for chunk in chunks:
-            response = client.get(
-                "https://translate.googleapis.com/translate_a/single",
-                params={"client": "gtx", "sl": "auto", "tl": "ru", "dt": "t", "q": chunk},
-            )
-            response.raise_for_status()
-            payload = response.json()
-            translated.append(
-                "".join(item[0] for item in payload[0] if item and item[0])
-            )
+            translated.append(_google_chunk(client, chunk))
     return "".join(translated)
+
+
+def _google_chunk(client, text: str) -> str:
+    response = client.get(
+        "https://translate.googleapis.com/translate_a/single",
+        params={"client": "gtx", "sl": "auto", "tl": "ru", "dt": "t", "q": text},
+    )
+    if response.status_code == 200:
+        try:
+            return _read_gtx(response.json())
+        except Exception:
+            pass
+    alt = client.get(
+        "https://clients5.google.com/translate_a/t",
+        params={"client": "dict-chrome-ex", "sl": "auto", "tl": "ru", "q": text},
+    )
+    alt.raise_for_status()
+    return _read_chrome(alt.json())
+
+
+def _read_gtx(payload) -> str:
+    text = "".join(item[0] for item in payload[0] if item and item[0])
+    if text.strip() == "":
+        raise RuntimeError("Перевод пустой")
+    return text
+
+
+def _read_chrome(payload) -> str:
+    if isinstance(payload, list) and payload and isinstance(payload[0], str) and payload[0].strip():
+        return payload[0]
+    raise RuntimeError("Переводчик не вернул текст")
 
 
 def _chunks(text: str) -> list[str]:

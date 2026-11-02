@@ -1,6 +1,6 @@
 import unittest
 
-from translate import to_russian
+from translate import _read_chrome, _read_gtx, to_russian
 
 
 class TranslateTest(unittest.TestCase):
@@ -25,6 +25,13 @@ class TranslateTest(unittest.TestCase):
             to_russian("Studio delivers [Issue#329].\n\nSecond line.", block=block),
             "Studio приносит [Issue#329].\n\nВторое line.",
         )
+
+    def test_readers_take_the_translated_sentence(self):
+        self.assertEqual(
+            _read_gtx([[["Древнее зло", "Ancient evil", None]]]),
+            "Древнее зло",
+        )
+        self.assertEqual(_read_chrome(["Древнее зло"]), "Древнее зло")
 
     def test_empty_translation_is_an_error(self):
         with self.assertRaises(RuntimeError):
