@@ -333,6 +333,34 @@ h1.game-title {
   line-height: 1;
 }
 
+.lang-bar {
+  max-width: 46rem;
+  margin-top: 2.5rem;
+}
+
+.lang-switch {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.lang-switch button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.lang-switch button.is-current {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
 .story {
   max-width: 46rem;
   margin-top: 3.5rem;

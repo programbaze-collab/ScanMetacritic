@@ -95,6 +95,14 @@ CREATE TABLE IF NOT EXISTS crawl_lock (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     started_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS translations (
+    path TEXT NOT NULL,
+    field TEXT NOT NULL,
+    source TEXT NOT NULL,
+    text TEXT NOT NULL,
+    PRIMARY KEY (path, field)
+);
 """
 
 
@@ -347,6 +355,47 @@ def save_letsplay(conn: sqlite3.Connection, path: str, video: dict, updated_at: 
             video.get("conclusion") or "",
             updated_at,
         ),
+    )
+    conn.commit()
+
+
+_TRANSLATION_FIELDS = {
+    "description",
+    "critic_summary",
+    "user_summary",
+    "conclusion",
+    "transcript",
+}
+
+
+def load_translation(
+    conn: sqlite3.Connection, path: str, field: str, source: str
+) -> str | None:
+    if field not in _TRANSLATION_FIELDS:
+        raise ValueError(field)
+    row = conn.execute(
+        "SELECT source, text FROM translations WHERE path = ? AND field = ?",
+        (path, field),
+    ).fetchone()
+    if row is None or row["source"] != source:
+        return None
+    return row["text"]
+
+
+def save_translation(
+    conn: sqlite3.Connection, path: str, field: str, source: str, text: str
+) -> None:
+    if field not in _TRANSLATION_FIELDS:
+        raise ValueError(field)
+    conn.execute(
+        """
+        INSERT INTO translations (path, field, source, text)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(path, field) DO UPDATE SET
+            source = excluded.source,
+            text = excluded.text
+        """,
+        (path, field, source, text),
     )
     conn.commit()
 

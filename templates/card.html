@@ -25,17 +25,28 @@
     </div>
   </div>
 </article>
+{% if copy.has_prose %}
+<div class="lang-bar" data-lang-switch>
+  <div class="lang-switch" role="group" aria-label="Язык текста">
+    <button type="button" data-set-lang="ru" class="is-current" aria-pressed="true">Русский</button>
+    <button type="button" data-set-lang="orig" aria-pressed="false">Оригинал</button>
+  </div>
+</div>
+{% endif %}
 <section class="story">
   <h2>Описание</h2>
-  <p class="plain-text">{{ game.description }}</p>
+  <p class="plain-text" data-lang="ru">{{ copy.description.ru }}</p>
+  <p class="plain-text" data-lang="orig" hidden>{{ copy.description.orig }}</p>
 </section>
 <section class="story">
   <h2>Пересказ критиков</h2>
-  <p class="summary-text">{{ game.critic_summary }}</p>
+  <p class="summary-text" data-lang="ru">{{ copy.critic_summary.ru }}</p>
+  <p class="summary-text" data-lang="orig" hidden>{{ copy.critic_summary.orig }}</p>
 </section>
 <section class="story">
   <h2>Пересказ игроков</h2>
-  <p class="summary-text">{{ game.user_summary }}</p>
+  <p class="summary-text" data-lang="ru">{{ copy.user_summary.ru }}</p>
+  <p class="summary-text" data-lang="orig" hidden>{{ copy.user_summary.orig }}</p>
 </section>
 <section class="story">
   <h2>Видео</h2>
@@ -52,15 +63,42 @@
   <p class="letsplay-title"><a class="quiet-link" href="{{ letsplay.url }}" rel="noopener" target="_blank">{{ letsplay.title }}</a></p>
   <p class="page-note">{{ letsplay.kind_label }} · {{ letsplay.views }} просмотров</p>
   {% if letsplay.conclusion %}
-  <p class="plain-text">{{ letsplay.conclusion }}</p>
+  <p class="plain-text" data-lang="ru">{{ copy.conclusion.ru }}</p>
+  <p class="plain-text" data-lang="orig" hidden>{{ copy.conclusion.orig }}</p>
   {% endif %}
   {% if letsplay.transcript %}
   <details class="transcript">
     <summary>Расшифровка</summary>
-    <p class="plain-text">{{ letsplay.transcript }}</p>
+    <p class="plain-text" data-lang="ru">{{ copy.transcript.ru }}</p>
+    <p class="plain-text" data-lang="orig" hidden>{{ copy.transcript.orig }}</p>
   </details>
   {% endif %}
   {% endif %}
+<script>
+(function () {
+  var root = document.querySelector("[data-lang-switch]");
+  if (!root) return;
+  var blocks = document.querySelectorAll("[data-lang]");
+  function apply(lang) {
+    blocks.forEach(function (node) {
+      node.hidden = node.getAttribute("data-lang") !== lang;
+    });
+    root.querySelectorAll("[data-set-lang]").forEach(function (button) {
+      var current = button.getAttribute("data-set-lang") === lang;
+      button.classList.toggle("is-current", current);
+      button.setAttribute("aria-pressed", current ? "true" : "false");
+    });
+    try { localStorage.setItem("catalog-text-lang", lang); } catch (error) {}
+  }
+  root.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-set-lang]");
+    if (button) apply(button.getAttribute("data-set-lang"));
+  });
+  var saved = "ru";
+  try { saved = localStorage.getItem("catalog-text-lang") || "ru"; } catch (error) {}
+  apply(saved === "orig" ? "orig" : "ru");
+})();
+</script>
 </section>
 {% if similar %}
 <section class="story">

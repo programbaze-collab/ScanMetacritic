@@ -98,9 +98,58 @@ class CatalogInterfaceTest(unittest.TestCase):
         self.assertIn("Пересказ игроков", page.text)
         self.assertIn("https://example.test/video.html", page.text)
         self.assertIn("Летсплей", page.text)
+        self.assertIn('data-set-lang="ru" class="is-current"', page.text)
+        self.assertIn('data-set-lang="orig"', page.text)
+        self.assertIn('data-lang="orig" hidden', page.text)
         self.assertIn('href="/games/beta"', page.text)
         self.assertIn("Каталог игр с Metacritic", page.text)
         self.assertEqual(self.client.get("/games/missing").status_code, 404)
+
+    def test_card_defaults_to_russian_and_keeps_original(self):
+        with TemporaryDirectory() as tmp:
+            db = Path(tmp) / "catalog.db"
+            conn = connect(db)
+            save(
+                conn,
+                "/game/alpha/",
+                "Alpha Quest",
+                [{"name": "PC", "metascore": 90, "userscore": 8}],
+            )
+            conn.execute(
+                """
+                UPDATE games
+                SET description = ?, critic_summary = ?, user_summary = ?
+                WHERE path = '/game/alpha/'
+                """,
+                ("Ancient evil [Issue#329]", "Critics liked it", "Players liked it"),
+            )
+            conn.commit()
+            conn.close()
+            self._assert_russian_card(db)
+
+    def _assert_russian_card(self, db):
+        calls = []
+
+        def translate(text):
+            calls.append(text)
+            return {
+                "Ancient evil [Issue#329]": "Древнее зло [Issue#329]",
+                "Critics liked it": "Критикам понравилось",
+                "Players liked it": "Игрокам понравилось",
+            }[text]
+
+        client = TestClient(create_app(db, start_crawl=lambda: None, translate=translate))
+        page = client.get("/games/alpha")
+        self.assertLess(page.text.index("Древнее зло [Issue#329]"), page.text.index("Ancient evil [Issue#329]"))
+        self.assertIn('data-lang="ru">Древнее зло [Issue#329]', page.text)
+        self.assertIn('data-lang="orig" hidden>Ancient evil [Issue#329]', page.text)
+        self.assertIn("Критикам понравилось", page.text)
+        self.assertIn("Игрокам понравилось", page.text)
+        self.assertEqual(len(calls), 3)
+
+        again = client.get("/games/alpha")
+        self.assertIn("Древнее зло [Issue#329]", again.text)
+        self.assertEqual(len(calls), 3)
 
     def test_process_hides_progress_until_a_run_starts(self):
         page = self.client.get("/process")

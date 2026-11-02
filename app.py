@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -17,7 +18,18 @@ from crawl import DEFAULT_DB, http_fetch, run_once
 from letsplay import search_letsplay
 from listing import game_url
 from similar import catalog_slug, similar_games
-from store import STALE_LOCK, ZONE, connect, crawl_snapshot, load_catalog, load_letsplay, local_day
+from store import (
+    STALE_LOCK,
+    ZONE,
+    connect,
+    crawl_snapshot,
+    load_catalog,
+    load_letsplay,
+    load_translation,
+    local_day,
+    save_translation,
+)
+from translate import to_russian
 
 ROOT = Path(__file__).resolve().parent
 SERVICE = "Каталог игр с Metacritic"
@@ -48,7 +60,7 @@ templates.env.globals["slug"] = catalog_slug
 templates.env.filters["score"] = lambda value: _format_score(value)
 
 
-def create_app(db_path: Path | None = None, start_crawl=None) -> FastAPI:
+def create_app(db_path: Path | None = None, start_crawl=None, translate=None) -> FastAPI:
     path = db_path or Path(os.environ.get("CATALOG_DB", str(DEFAULT_DB)))
     app = FastAPI()
     app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
@@ -108,18 +120,19 @@ def create_app(db_path: Path | None = None, start_crawl=None) -> FastAPI:
             games = load_catalog(conn)
             game = next((item for item in games if catalog_slug(item["path"]) == slug), None)
             letsplay = load_letsplay(conn, game["path"]) if game else None
+            if letsplay is not None:
+                letsplay = {
+                    **letsplay,
+                    "kind_label": _KIND.get(letsplay["kind"], letsplay["kind"]),
+                    "url": _http_url(letsplay["url"]),
+                }
+            copy = _copy(conn, game, letsplay, translate or to_russian) if game else None
         finally:
             conn.close()
         if game is None:
             return templates.TemplateResponse(
                 request, "missing.html", {}, status_code=404
             )
-        if letsplay is not None:
-            letsplay = {
-                **letsplay,
-                "kind_label": _KIND.get(letsplay["kind"], letsplay["kind"]),
-                "url": _http_url(letsplay["url"]),
-            }
         return templates.TemplateResponse(
             request,
             "card.html",
@@ -129,6 +142,7 @@ def create_app(db_path: Path | None = None, start_crawl=None) -> FastAPI:
                 "video": _http_url(game["video"]),
                 "letsplay": letsplay,
                 "similar": similar_games(games, game["path"]),
+                "copy": copy,
             },
         )
 
@@ -185,6 +199,56 @@ def _process(path: Path) -> dict:
         "message": message,
         "started": started,
     }
+
+
+def _copy(conn, game: dict, letsplay: dict | None, translate) -> dict:
+    sources = {
+        "description": game.get("description") or "",
+        "critic_summary": game.get("critic_summary") or "",
+        "user_summary": game.get("user_summary") or "",
+        "conclusion": (letsplay or {}).get("conclusion") or "",
+        "transcript": (letsplay or {}).get("transcript") or "",
+    }
+    ready = {}
+    pending = []
+    for field, source in sources.items():
+        if source == "":
+            ready[field] = {"orig": "", "ru": ""}
+            continue
+        cached = load_translation(conn, game["path"], field, source)
+        if cached is None:
+            pending.append(field)
+        else:
+            ready[field] = {"orig": source, "ru": cached}
+    rendered = _translate_sources(translate, [sources[field] for field in pending])
+    for field, text in zip(pending, rendered):
+        source = sources[field]
+        if text is None:
+            ready[field] = {"orig": source, "ru": source}
+            continue
+        save_translation(conn, game["path"], field, source, text)
+        ready[field] = {"orig": source, "ru": text}
+    ready["has_prose"] = any(item["orig"] for item in ready.values() if isinstance(item, dict))
+    return ready
+
+
+def _translate_sources(translate, sources: list[str]) -> list[str | None]:
+    if not sources:
+        return []
+
+    def one(source: str) -> str | None:
+        try:
+            text = translate(source)
+        except Exception:
+            return None
+        if not isinstance(text, str) or text.strip() == "":
+            return None
+        return text
+
+    if len(sources) == 1:
+        return [one(sources[0])]
+    with ThreadPoolExecutor(max_workers=min(4, len(sources))) as pool:
+        return list(pool.map(one, sources))
 
 
 def _lock_active(started_at: str | None, now: datetime) -> bool:
