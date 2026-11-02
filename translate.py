@@ -131,8 +131,12 @@ def _read_gtx(payload) -> str:
 
 
 def _read_chrome(payload) -> str:
-    if isinstance(payload, list) and payload and isinstance(payload[0], str) and payload[0].strip():
-        return payload[0]
+    if isinstance(payload, list) and payload:
+        first = payload[0]
+        if isinstance(first, str) and first.strip():
+            return first
+        if isinstance(first, list) and first and isinstance(first[0], str) and first[0].strip():
+            return first[0]
     raise RuntimeError("Переводчик не вернул текст")
 
 

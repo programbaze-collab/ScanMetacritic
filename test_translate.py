@@ -32,6 +32,7 @@ class TranslateTest(unittest.TestCase):
             "Древнее зло",
         )
         self.assertEqual(_read_chrome(["Древнее зло"]), "Древнее зло")
+        self.assertEqual(_read_chrome([["Древнее зло", "en"]]), "Древнее зло")
 
     def test_empty_translation_is_an_error(self):
         with self.assertRaises(RuntimeError):
