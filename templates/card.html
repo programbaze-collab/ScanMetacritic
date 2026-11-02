@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ game.title }} — {{ service }}{% endblock %}
+{% block content %}
+<article class="game-hero">
+  <div class="hero-cover">
+    {% if game.cover %}<img src="{{ game.cover }}" alt="">{% endif %}
+  </div>
+  <div class="hero-copy">
+    <p class="eyebrow">{{ game.developer | join(", ") }}</p>
+    <h1 class="game-title">{{ game.title }}</h1>
+    <p><a class="quiet-link" href="{{ metacritic }}" rel="noopener" target="_blank">Страница на Metacritic</a></p>
+    <div class="score-board">
+      <div class="score-head">
+        <span>Платформа</span>
+        <span>Критики</span>
+        <span>Игроки</span>
+      </div>
+      {% for platform in game.platforms %}
+      <div class="score-row">
+        <span>{{ platform.name }}</span>
+        <span class="score-num">{{ platform.metascore | score }}</span>
+        <span class="score-quiet">{{ platform.userscore | score }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</article>
+<section class="story">
+  <h2>Описание</h2>
+  <p class="plain-text">{{ game.description }}</p>
+</section>
+<section class="story">
+  <h2>Пересказ критиков</h2>
+  <p class="summary-text">{{ game.critic_summary }}</p>
+</section>
+<section class="story">
+  <h2>Пересказ игроков</h2>
+  <p class="summary-text">{{ game.user_summary }}</p>
+</section>
+<section class="story">
+  <h2>Видео</h2>
+  {% if video %}
+  <div class="video-frame ratio ratio-16x9">
+    <iframe src="{{ video }}" title="Видео {{ game.title }}" allowfullscreen></iframe>
+  </div>
+  <p class="video-link"><a class="quiet-link" href="{{ video }}" rel="noopener" target="_blank">Открыть видео</a></p>
+  {% endif %}
+</section>
+<section class="story">
+  <h2>Летсплей</h2>
+  {% if letsplay %}
+  <p class="letsplay-title"><a class="quiet-link" href="{{ letsplay.url }}" rel="noopener" target="_blank">{{ letsplay.title }}</a></p>
+  <p class="page-note">{{ letsplay.kind_label }} · {{ letsplay.views }} просмотров</p>
+  {% if letsplay.conclusion %}
+  <p class="plain-text">{{ letsplay.conclusion }}</p>
+  {% endif %}
+  {% if letsplay.transcript %}
+  <details class="transcript">
+    <summary>Расшифровка</summary>
+    <p class="plain-text">{{ letsplay.transcript }}</p>
+  </details>
+  {% endif %}
+  {% endif %}
+</section>
+{% if similar %}
+<section class="story">
+  <h2>Похожие</h2>
+  <div class="similar-row">
+    {% for item in similar %}
+    <a class="similar-link" href="/games/{{ slug(item.path) }}">{{ item.title }}</a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

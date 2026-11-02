@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-head">
+  <h1>Процесс</h1>
+  <p class="page-note">Текущее время <span id="crawl-time">{{ time }}</span></p>
+</header>
+<section class="status-panel">
+  <p class="eyebrow">Статус</p>
+  <p class="status-value" id="crawl-status">{{ status }}</p>
+  <p class="status-next" id="crawl-next">{{ next }}</p>
+  <p class="page-note" id="crawl-started"{% if not started %} hidden{% endif %}>{% if started %}Последний запуск: {{ started }}{% endif %}</p>
+  <p class="plain-text status-message" id="crawl-message"{% if not message %} hidden{% endif %}>{{ message }}</p>
+  <div id="crawl-progress"{% if not running %} class="d-none" hidden{% endif %}>
+    <div class="progress-row">
+      <div class="spinner-border" role="status"></div>
+      <progress aria-label="Идёт обход"></progress>
+      <span>Идёт обход</span>
+    </div>
+  </div>
+  <form method="post" action="/process/run">
+    <button class="btn btn-primary" id="run-now" type="submit"{% if running %} disabled{% endif %}>Запустить сейчас</button>
+  </form>
+</section>
+<script>
+async function refreshProcess() {
+  const response = await fetch("/process/status");
+  if (!response.ok) return;
+  const data = await response.json();
+  document.getElementById("crawl-time").textContent = data.time;
+  document.getElementById("crawl-status").textContent = data.status;
+  document.getElementById("crawl-next").textContent = data.next;
+  const message = document.getElementById("crawl-message");
+  message.textContent = data.message || "";
+  message.hidden = !data.message;
+  const started = document.getElementById("crawl-started");
+  started.hidden = !data.started;
+  started.textContent = data.started ? "Последний запуск: " + data.started : "";
+  const progress = document.getElementById("crawl-progress");
+  progress.hidden = !data.running;
+  progress.classList.toggle("d-none", !data.running);
+  document.getElementById("run-now").disabled = data.running;
+}
+setInterval(refreshProcess, 2000);
+</script>
+{% endblock %}

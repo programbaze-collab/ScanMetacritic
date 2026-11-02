@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-head">
+  <h1>{{ service }}</h1>
+  {% if games %}
+  <p class="page-note">{{ games|length }} в списке</p>
+  {% endif %}
+</header>
+<form class="filters" method="get" action="/">
+  <div class="filter-field">
+    <label for="q">Название</label>
+    <input class="form-control" id="q" name="q" value="{{ q }}" type="search" placeholder="Найти игру">
+  </div>
+  <div class="filter-field">
+    <label for="platform">Платформа</label>
+    <select class="form-select" id="platform" name="platform">
+      <option value="">Все платформы</option>
+      {% for name in platforms %}
+      <option value="{{ name }}"{% if name == platform %} selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-field filter-field-wide">
+    <label for="sort">Сортировка</label>
+    <select class="form-select" id="sort" name="sort">
+      {% for value, label in sorts %}
+      <option value="{{ value }}"{% if value == sort %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary" type="submit">Показать</button>
+</form>
+{% if games %}
+<div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+  {% for game in games %}
+  <div class="col">
+    <a class="card catalog-card h-100" href="/games/{{ slug(game.path) }}">
+      <div class="cover-slot">
+        {% if game.cover %}<img src="{{ game.cover }}" alt="">{% endif %}
+      </div>
+      <div class="card-body">
+        <h2 class="title-slot">{{ game.title }}</h2>
+        <div class="platforms-slot">
+          {% for platform in game.platforms %}
+          <div class="platform-line">
+            <span>{{ platform.name }}</span>
+            {% if platform.metascore is not none or platform.userscore is not none %}
+            <span class="platform-scores">
+              {% if platform.metascore is not none %}<span class="score-critic">{{ platform.metascore | score }}</span>{% endif %}
+              {% if platform.userscore is not none %}<span class="score-user">{{ platform.userscore | score }}</span>{% endif %}
+            </span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty-state">Нет таких игр</p>
+{% endif %}
+{% endblock %}
